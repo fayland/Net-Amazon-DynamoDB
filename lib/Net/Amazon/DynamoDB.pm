@@ -289,7 +289,9 @@ Default: -
 
 =cut
 
-has cache => ( isa => InstanceOf['Cache'], is => 'rw', predicate => 'has_cache' );
+has cache => ( isa => sub {
+     die "thaw/freeze/remove must be supported in cache" unless $_[0]->can('thaw') and $_[0]->can('freeze') and $_[0]->can('remove')
+}, is => 'rw', predicate => 'has_cache' );
 
 =head2 cache_disabled
 
