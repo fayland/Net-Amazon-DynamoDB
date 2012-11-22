@@ -60,7 +60,8 @@ See L<https://github.com/ukautz/Net-Amazon-DynamoDB> for latest release.
 
 =cut
 
-use Moose;
+use Moo;
+use MooX::Types::MooseLike::Base qw(:all);
 
 use v5.10;
 use version 0.74; our $VERSION = qv( "v0.1.16" );
@@ -88,7 +89,7 @@ The table definitions
 
 =cut
 
-has tables => ( isa => 'HashRef[HashRef]', is => 'rw', required => 1, trigger => sub {
+has tables => ( isa => HashRef[HashRef], is => 'rw', required => 1, trigger => sub {
     my ( $self ) = @_;
 
     # check table
@@ -144,7 +145,7 @@ Default: 0
 
 =cut
 
-has use_keep_alive => ( isa => 'Int', is => 'rw', default => 0 );
+has use_keep_alive => ( isa => Int, is => 'rw', default => sub { 0 } );
 
 =head2 lwp
 
@@ -152,8 +153,16 @@ Contains C<LWP::UserAgent> instance.
 
 =cut
 
-has lwp => ( isa => 'LWP::UserAgent', is => 'rw', lazy => 1, default => sub { my ($self) = @_; LWP::UserAgent->new( timeout => 5, keep_alive => $self->use_keep_alive ) } );
-has _lwpcache => ( isa => 'LWP::ConnCache', is => 'ro', lazy => 1, default => sub { my ($self) = @_; $self->lwp->conn_cache(); } );
+has lwp => ( isa => InstanceOf['LWP::UserAgent'], is => 'lazy');
+sub _build_lwp {
+    my ($self) = @_;
+    LWP::UserAgent->new( timeout => 5, keep_alive => $self->use_keep_alive )
+}
+has _lwpcache => ( isa => InstanceOf['LWP::ConnCache'], is => 'lazy' );
+sub _build__lwpcache {
+    my ($self) = @_;
+    $self->lwp->conn_cache();
+}
 
 =head2 json
 
@@ -163,9 +172,12 @@ JSON object needs to support: canonical, allow_nonref and utf8
 
 =cut
 
-has json => ( isa => 'JSON', is => 'rw', default => sub { JSON->new()->canonical( 1 )->allow_nonref( 1 )->utf8( 1 ) }, trigger => sub {
+has json => ( isa => InstanceOf['JSON'], is => 'lazy', trigger => sub {
     shift->json->canonical( 1 )->allow_nonref( 1 )->utf8( 1 );
 } );
+sub _build_json {
+    JSON->new()->canonical( 1 )->allow_nonref( 1 )->utf8( 1 )
+}
 
 =head2 host
 
@@ -175,7 +187,7 @@ Default: dynamodb.us-east-1.amazonaws.com
 
 =cut
 
-has host => ( isa => 'Str', is => 'rw', default => 'dynamodb.us-east-1.amazonaws.com' );
+has host => ( isa => Str, is => 'rw', default => sub { 'dynamodb.us-east-1.amazonaws.com' } );
 
 =head2 access_key
 
@@ -185,7 +197,7 @@ Required!
 
 =cut
 
-has access_key => ( isa => 'Str', is => 'rw', required => 1 );
+has access_key => ( isa => Str, is => 'rw', required => 1 );
 
 =head2 secret_key
 
@@ -195,7 +207,7 @@ Required!
 
 =cut
 
-has secret_key => ( isa => 'Str', is => 'rw', required => 1 );
+has secret_key => ( isa => Str, is => 'rw', required => 1 );
 
 =head2 api_version
 
@@ -205,7 +217,7 @@ Default: 20111205
 
 =cut
 
-has api_version => ( isa => 'Str', is => 'rw', default => '20111205' );
+has api_version => ( isa => Str, is => 'rw', default => sub { '20111205' } );
 
 =head2 read_consistent
 
@@ -215,7 +227,7 @@ Default: 0 (eventually consistent)
 
 =cut
 
-has read_consistent => ( isa => 'Bool', is => 'rw', default => 0 );
+has read_consistent => ( isa => Bool, is => 'rw', default => sub { 0 } );
 
 =head2 namespace
 
@@ -225,7 +237,7 @@ Default: ''
 
 =cut
 
-has namespace => ( isa => 'Str', is => 'ro', default => '' );
+has namespace => ( isa => Str, is => 'ro', default => sub { '' } );
 
 =head2 raise_error
 
@@ -235,7 +247,7 @@ Default: 0
 
 =cut
 
-has raise_error => ( isa => 'Bool', is => 'rw', default => 0 );
+has raise_error => ( isa => Bool, is => 'rw', default => sub { 0 } );
 
 =head2 max_retries
 
@@ -245,7 +257,7 @@ Default: 0 (do only once, no retries)
 
 =cut
 
-has max_retries => ( isa => 'Int', is => 'rw', default => 1 );
+has max_retries => ( isa => Int, is => 'rw', default => sub { 1 } );
 
 =head2 derive_table
 
@@ -255,7 +267,7 @@ Default: 0
 
 =cut
 
-has derive_table => ( isa => 'Bool', is => 'rw', default => 0 );
+has derive_table => ( isa => Bool, is => 'rw', default => sub { 0 } );
 
 =head2 retry_timeout
 
@@ -265,7 +277,7 @@ Default: 0.1 (100ms)
 
 =cut
 
-has retry_timeout => ( isa => 'Num', is => 'rw', default => 0.1 );
+has retry_timeout => ( isa => Num, is => 'rw', default => sub { 0.1 } );
 
 =head2 cache
 
@@ -277,7 +289,7 @@ Default: -
 
 =cut
 
-has cache => ( isa => 'Cache', is => 'rw', predicate => 'has_cache' );
+has cache => ( isa => InstanceOf['Cache'], is => 'rw', predicate => 'has_cache' );
 
 =head2 cache_disabled
 
@@ -288,7 +300,7 @@ Default: 0
 
 =cut
 
-has cache_disabled => ( isa => 'Bool', is => 'rw', default => 0 );
+has cache_disabled => ( isa => Bool, is => 'rw', default => sub { 0 } );
 
 =head2 cache_key_method
 
@@ -318,35 +330,35 @@ has cache_key_method => ( is => 'rw', default => sub { \&Digest::SHA::sha1_hex }
 #   Contains C<Net::Amazon::AWSSign> instance.
 #
 
-has _aws_signer => ( isa => 'Net::Amazon::AWSSign', is => 'rw', predicate => '_has_aws_signer' );
+has _aws_signer => ( isa => InstanceOf['Net::Amazon::AWSSign'], is => 'rw', predicate => '_has_aws_signer' );
 
 #
 # _security_token_url
 #   URL for receiving security token
 #
 
-has _security_token_url => ( isa => 'Str', is => 'rw', default => 'https://sts.amazonaws.com/?Action=GetSessionToken&Version=2011-06-15' );
+has _security_token_url => ( isa => Str, is => 'rw', default => sub { 'https://sts.amazonaws.com/?Action=GetSessionToken&Version=2011-06-15' } );
 
 #
 # _credentials
 #   Contains credentials received by GetSession
 #
 
-has _credentials => ( isa => 'HashRef[Str]', is => 'rw', predicate => '_has_credentials' );
+has _credentials => ( isa => HashRef[Str], is => 'rw', predicate => '_has_credentials' );
 
 #
 # _credentials_expire
 #   Time of credentials exiration
 #
 
-has _credentials_expire => ( isa => 'DateTime', is => 'rw' );
+has _credentials_expire => ( isa => InstanceOf['DateTime'], is => 'rw' );
 
 #
 # _error
 #   Contains credentials received by GetSession
 #
 
-has _error => ( isa => 'Str', is => 'rw', predicate => '_has_error' );
+has _error => ( isa => Str, is => 'rw', predicate => '_has_error' );
 
 =head1 METHODS
 
@@ -2476,8 +2488,6 @@ sub _cache_key {
     my $method = $self->cache_key_method();
     return sprintf( '%s-%s-%s', $table, $name, $method->( $self->json->encode( $id_ref ) ) );
 }
-
-__PACKAGE__->meta->make_immutable;
 
 
 =head1 AUTHOR
